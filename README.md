@@ -21,3 +21,7 @@ Launch the viewer:
 ```bash
 python -m ht2sim.ui
 ```
+
+## License
+
+[GNU GPLv3](LICENSE)
