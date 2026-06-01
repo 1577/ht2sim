@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pyqtgraph as pg
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from ..core import constants as C
 from ..core.config import Coding
@@ -9,17 +9,12 @@ from ..core.frame import Frame
 from ..signal.builder import build_merged_waveform, build_waveforms
 from ..signal.waveform import AnnotationKind
 
-pg.setConfigOption("background", "w")
-pg.setConfigOption("foreground", "k")
 pg.setConfigOptions(antialias=True)
 
 READER_COLOR = "#1f77b4"
 TAG_COLOR = "#d62728"
 IDLE_COLOR = "#9aa0a6"
-BIT_COLOR = "#555555"
-FRAME_COLOR = "#222222"
-GAP_BRUSH = pg.mkBrush(0, 0, 0, 18)
-CURSOR_PEN = pg.mkPen("#0a8f3c", width=1, style=QtCore.Qt.DashLine)
+CURSOR_PEN = pg.mkPen("#1aa85a", width=1, style=QtCore.Qt.DashLine)
 
 WAVE_AMPLITUDE = 0.55
 
@@ -84,8 +79,24 @@ class WaveformPlot(QtWidgets.QWidget):
         layout.addWidget(self.glw)
         self.glw.scene().sigMouseMoved.connect(self._on_mouse_moved)
 
+        self._apply_theme()
         self._build_layout()
 
+    def _apply_theme(self) -> None:
+        app = QtWidgets.QApplication.instance()
+        pal = app.palette() if app is not None else QtGui.QPalette()
+        base = pal.color(QtGui.QPalette.Base)
+        text = pal.color(QtGui.QPalette.Text)
+        dark = base.lightness() < 128
+        self._frame_color = text
+        self._bit_color = QtGui.QColor(text)
+        self._bit_color.setAlpha(160)
+        self._gap_brush = (
+            pg.mkBrush(255, 255, 255, 24) if dark else pg.mkBrush(0, 0, 0, 18)
+        )
+        pg.setConfigOption("background", base)
+        pg.setConfigOption("foreground", text)
+        self.glw.setBackground(base)
 
     def set_exchange(
         self,
@@ -251,7 +262,11 @@ class WaveformPlot(QtWidgets.QWidget):
         for ann in self._frame_anns:
             plot = self._plot_for(ann.channel)
             if ann.channel in ("reader", "tag"):
-                color = _CHANNEL_COLOR[ann.channel] if self._mode == "merged" else FRAME_COLOR
+                color = (
+                    _CHANNEL_COLOR[ann.channel]
+                    if self._mode == "merged"
+                    else self._frame_color
+                )
                 self._add_frame_label(plot, ann, color)
             else:
                 for p in self._plots.values():
@@ -282,7 +297,7 @@ class WaveformPlot(QtWidgets.QWidget):
         region = pg.LinearRegionItem(
             values=(ann.t_start_to, ann.t_end_to),
             movable=False,
-            brush=GAP_BRUSH,
+            brush=self._gap_brush,
             pen=pg.mkPen(None),
         )
         region.setZValue(-10)
@@ -291,7 +306,11 @@ class WaveformPlot(QtWidgets.QWidget):
 
     def _add_bit_label(self, plot, ann) -> None:
         center = ann.t_start_to + ann.duration_to / 2.0
-        color = _CHANNEL_COLOR.get(ann.channel, BIT_COLOR) if self._mode == "merged" else BIT_COLOR
+        color = (
+            _CHANNEL_COLOR.get(ann.channel, self._bit_color)
+            if self._mode == "merged"
+            else self._bit_color
+        )
         text = pg.TextItem(ann.text, color=color, anchor=(0.5, 0.5))
         text.setPos(center, _Y_BITS)
         plot.addItem(text, ignoreBounds=True)
