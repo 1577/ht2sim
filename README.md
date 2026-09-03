@@ -2,7 +2,7 @@
 
 A toolkit for simulating and analysing Hitag2 protocol exchanges
 
-![ht2sim](assets/ht2sim_mac.png)
+![ht2sim](assets/ht2sim.jpg)
 
 ## Installation
 
